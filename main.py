@@ -103,6 +103,17 @@ def do_remove_gravity(data):
 
     return acce_nog
 
+
+def remove_first_seconds(data, seconds):
+    time = [float(entry[0]) for entry in data]
+    # look point
+    i = 0
+    while time[i] < seconds:
+        i += 1
+
+    return data[i:]
+
+
 if __name__ == '__main__':
     posi, acce, gyro, magn, ahrs = read_log_file("test_00.log")
     plot_data(acce, "test_00_acce_row.png",  ['AcceX','AcceY','AcceZ'])
@@ -126,6 +137,20 @@ if __name__ == '__main__':
     velo_nog = do_velocity(acce_nog)
     plot_data(velo_nog, "test_15_velo_nog.png",  ['VeloX', 'VeloY', 'VeloZ'])
 
+    posi, acce, gyro, magn, ahrs = read_log_file("track.log")
+    acce = remove_first_seconds(acce, 30)
+    gyro = remove_first_seconds(gyro, 30)
+    magn = remove_first_seconds(magn, 30)
+    ahrs = remove_first_seconds(ahrs, 30)
 
+    plot_data(acce, "track_acce_row.png",  ['AcceX','AcceY','AcceZ'])
+    plot_data(ahrs, "track_ahrs_row.png",  ['PitchX', 'RollY', 'YawZ'])
+    velo = do_velocity(acce)
+    plot_data(velo, "track_velo_row.png",  ['VeloX', 'VeloY', 'VeloZ'])
+
+    acce_nog = do_remove_gravity(acce)
+    plot_data(acce_nog, "track_acce_nog.png", ['AcceX','AcceY','AcceZ'])
+    velo_nog = do_velocity(acce_nog)
+    plot_data(velo_nog, "track_velo_nog.png",  ['VeloX', 'VeloY', 'VeloZ'])
 
 
