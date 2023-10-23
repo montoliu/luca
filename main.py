@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 
 def read_log_file(filename):
@@ -100,8 +101,8 @@ def do_integration(data_in):
     return data_out
 
 
-def do_remove_gravity(data):
-    time = [float(entry[0]) for entry in data]
+def do_remove_gravity_by_mean(data):
+    time = [entry[0] for entry in data]
     x = [entry[1] for entry in data]
     y = [entry[2] for entry in data]
     z = [entry[3] for entry in data]
@@ -110,11 +111,15 @@ def do_remove_gravity(data):
     mean_y = np.mean(y)
     mean_z = np.mean(z)
 
-    acce_nog = []
+    data_nog = []
     for i in range(len(time)):
-        acce_nog.append([time[i], x[i] - mean_x, y[i]-mean_y, z[i]- mean_z])
+        data_nog.append([time[i], x[i] - mean_x, y[i]-mean_y, z[i]- mean_z])
 
-    return acce_nog
+    return data_nog
+
+
+def to_rad(deg):
+    return deg * np.pi / 180.0
 
 
 def remove_first_seconds(data, seconds):
@@ -135,9 +140,16 @@ if __name__ == '__main__':
         filename = "test_" + test + ".log"
         print("Working with file: " + filename)
         posi_org, acce, gyro, magn, ahrs = read_log_file(filename)
+        if test == 'tr':
+            acce = remove_first_seconds(acce, 30)
+            ahrs = remove_first_seconds(ahrs, 30)
+            posi_org = remove_first_seconds(posi_org, 30)
+
         velo_row = do_integration(acce)                           # estimate velocity by integration
         posi_row = do_integration(velo_row)                       # estimate position by integration
-        acce_nog = do_remove_gravity(acce)                        # remove gravity
+
+        acce_nog = do_remove_gravity_by_mean(acce)              # remove gravity by mean
+
         velo_nog = do_integration(acce_nog)                       # estimate velocity by integration
         posi_nog = do_integration(velo_nog)                       # estimate position by integration
 
