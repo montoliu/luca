@@ -1,3 +1,4 @@
+import bisect
 import matplotlib.pyplot as plt
 import numpy as np
 from scipy.spatial.transform import Rotation
@@ -19,7 +20,7 @@ def read_log_file(filename):
             field_type = fields[0]
 
             if field_type == "POSI":
-                posi.append([float(fields[1]), float(fields[2]), float(fields[3]), float(fields[4])])
+                posi.append([float(fields[1]), float(fields[3]), float(fields[4])])
             elif field_type == "ACCE":
                 acce.append([float(fields[1]), float(fields[3]), float(fields[4]), float(fields[5])])
             elif field_type == "GYRO":
@@ -68,8 +69,8 @@ def plot_data2D(data, filename, limits):
     plt.plot(x, y)
     plt.xlabel('X')
     plt.ylabel('Y')
-    plt.xlim(limits[0], limits[1])
-    plt.ylim(limits[0], limits[1])
+    plt.xlim(limits[0][0], limits[0][1])
+    plt.ylim(limits[1][0], limits[1][1])
     plt.savefig(filename)
     plt.close()
 
@@ -118,6 +119,53 @@ def do_remove_gravity_by_mean(data):
     return data_nog
 
 
+def look_time_most_similar(time_list, time):
+    index = bisect.bisect_left(time_list, time)
+    if index > 0 and (index == len(time_list) or abs(time - time_list[index - 1]) < abs(time_list[index] - time)):
+        return index - 1
+    return index
+
+
+def do_remove_gravity_by_rotation(acce, ahrs):
+    time_acce = [entry[0] for entry in acce]
+    acce_x = [entry[1] for entry in acce]
+    acce_y = [entry[2] for entry in acce]
+    acce_z = [entry[3] for entry in acce]
+
+    time_ahrs = [entry[0] for entry in ahrs]
+    pitch_x = [entry[1] for entry in ahrs]
+    roll_y = [entry[2] for entry in ahrs]
+    yaw_z = [entry[3] for entry in ahrs]
+
+    acce_nog = []
+    for i in range(len(time_acce)):
+        idx = look_time_most_similar(time_ahrs, time_acce[i])
+        alpha = to_rad(yaw_z[idx])  # YawZ
+        beta = to_rad(roll_y[idx])  # RollY
+        gamma = to_rad(pitch_x[idx])  # PitchX
+
+        acce_ith = np.array([acce_x[i], acce_y[i], acce_z[i]])
+
+        ca = np.cos(alpha)
+        sa = np.sin(alpha)
+        cb = np.cos(beta)
+        sb = np.sin(beta)
+        cg = np.cos(gamma)
+        sg = np.sin(gamma)
+
+        Ralhpa = np.array([[ca, -sa, 0], [sa, ca, 0], [0, 0, 1]])
+        Rbeta = np.array([[cb, 0, sb], [0, 1, 0], [-sb, 0, cb]])
+        Rgamma = np.array([[1, 0, 0], [0, cg, -sg], [0, sg, cg]])
+
+        Rtemp = np.dot(Ralhpa, Rbeta)
+        R = np.dot(Rtemp, Rgamma)
+
+        new_acce = np.dot(R, acce_ith) - np.array([0, 0, 9.8])
+        acce_nog.append([time_acce[i], new_acce[0], new_acce[1], new_acce[2]])
+
+    return acce_nog
+
+
 def to_rad(deg):
     return deg * np.pi / 180.0
 
@@ -148,7 +196,8 @@ if __name__ == '__main__':
         velo_row = do_integration(acce)                           # estimate velocity by integration
         posi_row = do_integration(velo_row)                       # estimate position by integration
 
-        acce_nog = do_remove_gravity_by_mean(acce)              # remove gravity by mean
+        # acce_nog = do_remove_gravity_by_mean(acce)                # remove gravity by mean
+        acce_nog = do_remove_gravity_by_rotation(acce, ahrs)      # remove gravity by mean
 
         velo_nog = do_integration(acce_nog)                       # estimate velocity by integration
         posi_nog = do_integration(velo_nog)                       # estimate position by integration
@@ -162,9 +211,18 @@ if __name__ == '__main__':
         plot_data3D(velo_nog, "test_" + test + "_velo_nog.png", ['VeloX', 'VeloY', 'VeloZ'])
         plot_data3D(posi_nog, "test_" + test + "_posi_nog.png", ['VeloX', 'VeloY', 'VeloZ'])
 
-        plot_data2D(posi_org, "test_" + test + "_posi2D_org.png", [-10, 10])
-        plot_data2D(posi_row, "test_" + test + "_posi2D_row.png", [-100, 100])
-        plot_data2D(posi_nog, "test_" + test + "_posi2D_nog.png", [-100, 100])
+        if test == 'tr':
+            limits_org = [[43.7182, 43.7186], [10.4215, 10.4223]]
+            limits_raw = [[-10000, 10000], [-10000, 10000]]
+            limits_nog = [[-10000, 10000], [-1000, 10000]]
+        else:
+            limits_org = [[0, 10], [0, 10]]
+            limits_raw = [[-1000, 1000], [-1000, 1000]]
+            limits_nog = [[-100, 100], [-100, 100]]
+
+        plot_data2D(posi_org, "test_" + test + "_posi2D_org.png", limits_org)
+        plot_data2D(posi_row, "test_" + test + "_posi2D_row.png", limits_raw)
+        plot_data2D(posi_nog, "test_" + test + "_posi2D_nog.png", limits_nog)
 
 
 
