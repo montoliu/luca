@@ -95,7 +95,7 @@ def do_integration(data_in):
         dt = time[i] - time[i - 1]
         velo_x = data_out[i - 1][1] + (x[i] + x[i - 1]) / 2 * dt
         velo_y = data_out[i - 1][2] + (y[i] + y[i - 1]) / 2 * dt
-        velo_z = data_out[i - 1][3] + (z[i] + x[i - 1]) / 2 * dt
+        velo_z = data_out[i - 1][3] + (z[i] + z[i - 1]) / 2 * dt
 
         data_out.append([time[i], velo_x, velo_y, velo_z])
 
@@ -114,7 +114,7 @@ def do_remove_gravity_by_mean(data):
 
     data_nog = []
     for i in range(len(time)):
-        data_nog.append([time[i], x[i] - mean_x, y[i]-mean_y, z[i]- mean_z])
+        data_nog.append([time[i], x[i] - mean_x, y[i] - mean_y, z[i] - mean_z])
 
     return data_nog
 
@@ -217,7 +217,7 @@ if __name__ == '__main__':
             limits_nog = [[-10000, 10000], [-1000, 10000]]
         else:
             limits_org = [[0, 10], [0, 10]]
-            limits_raw = [[-1000, 1000], [-1000, 1000]]
+            limits_raw = [[-250, 250], [-250, 250]]
             limits_nog = [[-100, 100], [-100, 100]]
 
         plot_data2D(posi_org, "test_" + test + "_posi2D_org.png", limits_org)
